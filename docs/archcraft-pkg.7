@@ -1,0 +1,112 @@
+.\" Manpage for archcraft-pkg
+.TH ARCHCRAFT-PKG 7 "2025-06-16" "1.0" "Archcraft Package System Manual"
+.SH NAME
+archcraft-pkg \- Alternative realtime crafting header coop reactivable and file-timesnapshot package
+.SH SYNOPSIS
+.B archcraft-pkg
+[\fIOPTIONS\fR] \fICOMMAND\fR [\fIARGS\fR]
+.SH DESCRIPTION
+Archcraft-pkg is a package structure developed for universal Linux distribution package management.
+It supports universal usage across all Linux distributions and other operating systems.
+Unlike traditional Arch-based tools such as
+.B pacman
+or
+.B makepkg,
+archcraft-pkg is developed independently and follows a unique package distribution architecture.
+.SH PACKAGE STRUCTURE
+The package integrity model is based on the
+.B MAKEPKGBUILD
+configuration foundation.
+
+Unlike PKGBUILD,
+.B MAKEPKGBUILD
+allows operating system level tools to install packages universally on any supported OS.
+For security reasons, only "building-craft" tools are recommended at the OS level,
+though many tools remain free to use.
+.SH PHILOSOPHY
+.B MAKEPKGBUILD
+aims to provide wide and flexible installation options for all operating systems.
+Pragma methods and functions specific to distributions can be defined, including custom
+installations targeting particular OS environments using
+.B #PARAGMA : OS
+directives.
+.SH USING
+You can specify the operating system you want with the
+.B PARAGMA
+parameter, which is one of the functions that comes with the software.
+
+Example:
+.PP
+.nf
+__PARAGMAS__=(
+  "OS=cowhead"
+)
+.fi
+
+Custom installation is supported for each operating system.
+It is enough to have the installation instructions correct.
+It is supported by super cow powers...
+.SH LICENSE
+This project is open source.
+The official rights belong to Azccriminal Unlimited Organization.
+.SH DEVELOPMENT NOTES
+Version 1.0
+.B ARCH-CRAFT-PKG REMOVE-BUILD
+release includes:
+.TP
+1. Setup command:
+A special installation command named
+.B setup
+has been added.  
+It allows specifying permissions and installation source points similar to the Unix
+.B install
+command.
+
+Example:
+.RS
+setup -Dm755 data_env1:src:/etc/archcraft
+.RE
+
+.TP
+2. P2P Onion HTTP Source Download:
+Support for downloading sources via P2P onion HTTP has been implemented.
+
+Using the
+.B data://
+protocol, packages can be compiled and installed over desired protocols.
+Security patch verification is recommended for all downloaded packages.
+
+.TP
+3. BUILD() Command:
+Installation can be configured using system installation commands.
+Only "build-in-craft" and "build-on-craft" commands are supported for security reasons.
+Non-security installations allow using full system commands.
+
+.TP
+4. Git and Checksum Verification:
+With this feature, you can update and compare the package with
+.B GITCHECK
+or verify the package with
+.B CHECKSUM.
+
+Example:
+.PP
+.nf
+GITCHECK="https://github.com/azccriminal/makepkgbuild.git@v1.0"
+
+CHECKSUM=(
+  "src/makepkgbuild.py:deadc0de0000000000000000000000000000000000000000000000000000000000"
+)
+.fi
+
+It supports all authentication formats, but you can use it in cryptographic formats such as
+.BR md5 ,
+.BR shasum .
+.SH SEE ALSO
+.BR makepkg (1),
+.BR pacman (8),
+.BR install (1)
+.SH AUTHOR
+Azccriminal Unlimited Organization
+.SH BUGS
+Report bugs to <admin@azccriminal.space>
