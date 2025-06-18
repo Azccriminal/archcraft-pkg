@@ -1,16 +1,17 @@
 from setuptools import setup
 import os
 
-# Define the command-line entry point
 entry_points = {
     'console_scripts': [
         'makepkgbuild = makepkgbuild:main',
+        'apkg = archcraftpkg:main',
     ],
 }
 
-# Ensure the script exists before proceeding
-if not os.path.exists('src/makepkgbuild.py'):
-    raise FileNotFoundError("src/makepkgbuild.py not found.")
+# Dosyaların varlığını kontrol et
+for f in ['src/makepkgbuild.py', 'src/archcraftpkg.py']:
+    if not os.path.exists(f):
+        raise FileNotFoundError(f"{f} not found.")
 
 setup(
     name='archcraft-pkg',
@@ -19,8 +20,7 @@ setup(
     author='Zaman Huseynli',
     author_email='zamanhuseynli23@gmail.com',
     license='GPLv3',
-    packages=[''],
-    py_modules=['makepkgbuild'],
+    py_modules=['makepkgbuild', 'archcraftpkg'],
     package_dir={'': 'src'},
     entry_points=entry_points,
     classifiers=[
@@ -30,10 +30,11 @@ setup(
         'Environment :: Console',
         'Topic :: Software Development :: Build Tools',
     ],
-    install_requires=[],
+    install_requires=[],  # Eğer gereksinim varsa buraya ekle
     include_package_data=True,
     data_files=[
         ('share/man/man7', ['docs/archcraft-pkg.7']),
         ('share/doc/archcraft-pkg', ['docs/Archcraft-pkg.pdf']),
     ],
 )
+

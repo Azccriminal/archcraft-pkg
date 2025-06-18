@@ -1,15 +1,19 @@
 name=archcraft-pkg
 pkgver=1.0.0
-pkgdesc="Custom Archcraft MAKEPKGBUILD tool using PyInstaller"
+pkgdesc="archcraft-pkg Alternative realtime crafting header coop reactivable and file-timesnapshot package utility."
 license=("GPL3")
 arch=("any")
 depends=("pyinstaller" "python")
-upstream=("data://file/{PATH_ENV}/src/makepkgbuild.py,data://file/{PATH_ENV}/docs/archcraft-pkg.7,data://file/{PATH_ENV}/docs/Archcraft-pkg.pdf")
+upstream=("data://file/{PATH_ENV}/src/makepkgbuild.py,data://file/{PATH_ENV}/docs/archcraft-pkg.7,data://file/{PATH_ENV}/docs/Archcraft-pkg.pdf,data://file/{PATH_ENV}/src/archcraftpkg.py")
 
 BUILD()
 setup -Dm755 data_env1:src:/tmp/makepkgbuild.py
 pyinstaller --onefile /tmp/makepkgbuild.py --distpath /tmp/dist
 install -Dm755 /tmp/dist/makepkgbuild /usr/bin/makepkgbuild
+
+setup -Dm755 data_env4:src:/tmp/archcraftpkg.py
+pyinstaller --onefile /tmp/archcraftpkg.py --distpath /tmp/dist
+install -Dm755 /tmp/dist/archcraftpkg /usr/bin/apkg
 
 setup -Dm644 data_env2:src:/usr/share/man/archcraft-pkg.7
 setup -Dm644 data_env3:src:$HOME/Documents/Archcraft-pkg.pdf
