@@ -339,6 +339,14 @@ def search(pkgname, repo=None, release=None, query_string=None, use_autoindex=Fa
 
     print("❌ Package not found in mirrors.")
 
+def remove_cache():
+    cache_dir = os.path.expanduser("~/.cache/archcraft-pkg")
+    if os.path.exists(cache_dir):
+        print(f"🗑 Removing cache directory: {cache_dir}")
+        shutil.rmtree(cache_dir)
+        print("✅ Cache cleared.")
+    else:
+        print("Cache directory does not exist.")
 
 def snapshot_save(filename):
     packages = os.listdir(PKG_DB)
@@ -377,6 +385,7 @@ def print_help():
     print("  --query=param=value[...]    Extra query parameters")
     print("  --ntp-sync                  Sync time with NTP server before operation")
     print("  --autoindex                 Use autoindex mirror feature\n")
+    print(" --remove-cache               Removed cacheing files.\n")
     print("Other:")
     print("  --help                     Show this help message and exit")
     print("  --version                  Show version information and exit")
@@ -390,6 +399,7 @@ if __name__ == "__main__":
         print_version()
         sys.exit(0)
 
+    # cmd olarak --remove-cache yi de dahil ettik
     cmd = sys.argv[1]
 
     pkgname_or_file = None
@@ -400,6 +410,8 @@ if __name__ == "__main__":
     ntp_sync_flag = False
     use_autoindex = False
 
+    # --remove-cache komut olduğundan ayrı işlem yapacağız, bu yüzden argümanlardan almayız
+    # Diğer parametreleri argümanlardan alalım
     for arg in sys.argv[2:]:
         if arg == "--autoindex":
             use_autoindex = True
@@ -437,6 +449,9 @@ if __name__ == "__main__":
             snapshot_load(sys.argv[3], repo, release, no_secure, query_string, ntp_sync_flag)
         else:
             print("❌ Invalid snapshot command. Use 'save' or 'load'.")
+    elif cmd == "--remove-cache":
+        remove_cache()
+        sys.exit(0)
     else:
         print("❌ Invalid command or missing package name.")
         print_help()
