@@ -21,6 +21,8 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 VERSION = "1.0"
 AUTHOR = "Zaman Huseynli"
 ORG = "Azccriminal Unlimited Organization"
+GPG_DIR = "/root/.archcraftpkg_gpg"
+homedir = "/tmp/tmp_qe1irc7"
 
 KEYRING_PATH = "/etc/archcraft/keyring"
 MIRRORLIST = "/etc/archcraft/mirrorpkglist"
@@ -153,40 +155,78 @@ def download_from_mirrors(pkg, sig, target_repo=None, release_type=None, query_s
             print(f"❌ Mirror failed: {mirror}")
     return False
 
+
+
+def prepare_gpg_env():
+    # 1) GPG dizinini oluştur
+    os.makedirs(GPG_DIR, exist_ok=True)
+
+    # 2) Anahtarları import et
+    import_keyring(GPG_DIR)
+
+    # 3) Import edilen anahtarları trust et
+    trust_all_keys(GPG_DIR)
+
 def import_keyring(gpg_dir):
     for asc in os.listdir(KEYRING_PATH):
         if asc.endswith(".asc"):
-            subprocess.run(["gpg", "--homedir", gpg_dir, "--import", os.path.join(KEYRING_PATH, asc)], check=True)
+            asc_path = os.path.join(KEYRING_PATH, asc)
+            print(f"Importing key: {asc_path}")
+            subprocess.run(
+                ["gpg", "--homedir", gpg_dir, "--import", asc_path],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
 def trust_all_keys(gpg_dir):
+    # Anahtarları listele
     proc = subprocess.run(
         ["gpg", "--homedir", gpg_dir, "--list-keys", "--with-colons"],
-        capture_output=True, text=True, check=True
+        capture_output=True,
+        text=True,
+        check=True
     )
-    keys = []
+
+    trust_lines = []
     for line in proc.stdout.splitlines():
         if line.startswith("pub"):
             keyid = line.split(":")[4]
-            keys.append(keyid)
+            # 6 = ultimate trust
+            trust_lines.append(f"{keyid}:6:\n")
 
-    for keyid in keys:
-        input_data = "trust\n5\ny\nquit\n"
-        subprocess.run(
-            ["gpg", "--homedir", gpg_dir, "--command-fd", "0", "--edit-key", keyid],
-            input=input_data.encode(),
-            check=True
-        )
+    trust_data = "".join(trust_lines)
+
+    # Ownertrust verisini import et (trust seviyesini ayarla)
+    subprocess.run(
+        ["gpg", "--homedir", gpg_dir, "--import-ownertrust"],
+        input=trust_data.encode(),
+        check=True
+    )
 
 def verify(pkg, gpg_dir):
-    subprocess.run(["gpg", "--homedir", gpg_dir, "--verify", pkg + ".sig", pkg], check=True)
+    try:
+        subprocess.run(
+            ["gpg", "--homedir", gpg_dir, "--verify", f"{pkg}.sig", pkg],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        return True
+    except subprocess.CalledProcessError as e:
+        print(" GPG verification failed.")
+        print("📛 MTF GTLOB server = Go to the lie server, optional preparation is 522. The MTF GTLOB server error is a mistake, but it happens because the server manipulates the content. Since we use GitLab-like infrastructures, more problems may be experienced with the “more trash file” tool. This error will be solved when we have a new infrastructure. If you encounter problems with GPG signature validation due to package losses in GitLab, please contact admin@azccriminal.space.")
+        print("stderr:", e.stderr)
 
 def extract(pkg):
-    # pkg: tam dosya yolu değil, sadece dosya adı bekleniyor
     pkg_path = CACHE_DIR / pkg
 
     tar_path = CACHE_DIR / pkg.replace(".zst", "")
     try:
-        subprocess.run(["zstd", "-d", "-f", str(pkg_path), "-o", str(tar_path)], check=True)
+        subprocess.run(
+            ["zstd", "-d", "-f", str(pkg_path), "-o", str(tar_path)],
+            check=True
+        )
     except subprocess.CalledProcessError as e:
         print(f"❌ Zstd decompression failed: {e}")
         raise
@@ -205,7 +245,6 @@ def extract(pkg):
         extract_dir = CACHE_DIR
 
     return files, extract_dir
-
 
 
 def install(pkgname, repo=None, release=None, no_secure=False, query_string=None, ntp_sync_flag=False, use_autoindex=False):
@@ -411,6 +450,7 @@ def print_help():
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] in ("--help", "-h"):
+        prepare_gpg_env()
         print_help()
         sys.exit(0)
 
