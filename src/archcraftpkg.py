@@ -9,15 +9,22 @@ import shutil
 import platform
 import json
 import re
+from pathlib import Path
 
 RED = "\033[31m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
 
+CACHE_DIR = Path.home() / ".cache" / "archcraft-pkg"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+VERSION = "1.0"
+AUTHOR = "Zaman Huseynli"
+ORG = "Azccriminal Unlimited Organization"
+
 KEYRING_PATH = "/etc/archcraft/keyring"
 MIRRORLIST = "/etc/archcraft/mirrorpkglist"
-PKG_DB = "/var/lib/apkg/installed"
-
+PKG_DB = Path("/var/lib/apkg/installed")
 os.makedirs(PKG_DB, exist_ok=True)
 
 def get_arch():
@@ -102,15 +109,18 @@ def get_autoindex_file_list(mirror_url):
         print(f"⚠ Autoindex directory listing failed: {mirror_url} ({e})")
         return None
 
-def download_file(url, output_path):
+def download_file(url, filename):
+    output_path = CACHE_DIR / filename
     try:
-        subprocess.check_call([
-            "curl", "-L", "-A", "Mozilla/5.0 (X11; Linux x86_64) archcraft-pkg/1.0",
-            "-o", output_path,
-            url
-        ])
+        headers = {
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) archcraft-pkg/1.0"
+        }
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req) as response, open(output_path, 'wb') as out_file:
+            out_file.write(response.read())
+        print(f"✔ Downloaded {filename} to {output_path}")
         return True
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         print(f"❌ Failed to download {url}: {e}")
         return False
 
@@ -152,30 +162,31 @@ def verify(pkg, gpg_dir):
     subprocess.run(["gpg", "--homedir", gpg_dir, "--verify", pkg + ".sig", pkg], check=True)
 
 def extract(pkg):
-    cache_dir = os.path.expanduser("~/.cache/archcraft-pkg")
-    os.makedirs(cache_dir, exist_ok=True)
+    # pkg: tam dosya yolu değil, sadece dosya adı bekleniyor
+    pkg_path = CACHE_DIR / pkg
 
-    tar_path = os.path.join(cache_dir, os.path.basename(pkg).replace(".zst", ""))
+    tar_path = CACHE_DIR / pkg.replace(".zst", "")
     try:
-        subprocess.run(["zstd", "-d", "-f", pkg, "-o", tar_path], check=True)
+        subprocess.run(["zstd", "-d", "-f", str(pkg_path), "-o", str(tar_path)], check=True)
     except subprocess.CalledProcessError as e:
         print(f"❌ Zstd decompression failed: {e}")
         raise
 
     with tarfile.open(tar_path, "r:") as tar:
         files = tar.getnames()
-        tar.extractall(path=cache_dir)
+        tar.extractall(path=CACHE_DIR)
 
     os.remove(tar_path)
 
     # Ana dizini tespit et
     top_level_dirs = set(f.split('/')[0] for f in files if '/' in f)
     if len(top_level_dirs) == 1:
-        extract_dir = os.path.join(cache_dir, list(top_level_dirs)[0])
+        extract_dir = CACHE_DIR / list(top_level_dirs)[0]
     else:
-        extract_dir = cache_dir
+        extract_dir = CACHE_DIR
 
     return files, extract_dir
+
 
 
 def install(pkgname, repo=None, release=None, no_secure=False, query_string=None, ntp_sync_flag=False, use_autoindex=False):
@@ -184,6 +195,9 @@ def install(pkgname, repo=None, release=None, no_secure=False, query_string=None
 
     pkg = f"{pkgname}.pkg.tar.zst"
     sig = pkg + ".sig"
+
+    pkg_path = CACHE_DIR / pkg
+    sig_path = CACHE_DIR / sig
 
     # Download the package and its signature
     if not no_secure:
@@ -194,7 +208,7 @@ def install(pkgname, repo=None, release=None, no_secure=False, query_string=None
         with tempfile.TemporaryDirectory() as gpg_dir:
             import_keyring(gpg_dir)
             try:
-                verify(pkg, gpg_dir)
+                verify(str(pkg_path), gpg_dir)
             except subprocess.CalledProcessError:
                 print("❌ PGP verification failed!")
                 sys.exit(1)
@@ -204,7 +218,7 @@ def install(pkgname, repo=None, release=None, no_secure=False, query_string=None
         for mirror in mirrors:
             try:
                 print(f"\U0001F310 Trying mirror without PGP: {mirror}")
-                urllib.request.urlretrieve(f"{mirror}/{pkg}", pkg)
+                urllib.request.urlretrieve(f"{mirror.rstrip('/')}/{pkg}", str(pkg_path))
                 success = True
                 print("⚠ Warning: Downloaded without PGP signature verification!")
                 break
@@ -219,7 +233,8 @@ def install(pkgname, repo=None, release=None, no_secure=False, query_string=None
 
     # Save the file list to PKG_DB
     os.makedirs(PKG_DB, exist_ok=True)
-    with open(os.path.join(PKG_DB, pkgname), "w") as f:
+    pkgdb_file = PKG_DB / pkgname
+    with pkgdb_file.open("w") as f:
         for path in files:
             f.write(f"/{path}\n")
 
@@ -228,7 +243,7 @@ def install(pkgname, repo=None, release=None, no_secure=False, query_string=None
     if user_input == "y":
         try:
             print(f"🔧 Running makepkgbuild in {extract_dir} ...")
-            subprocess.run(["makepkgbuild"], cwd=extract_dir, check=True)
+            subprocess.run(["makepkgbuild"], cwd=str(extract_dir), check=True)
         except subprocess.CalledProcessError as e:
             print(f"❌ makepkgbuild failed: {e}")
             sys.exit(1)
@@ -342,18 +357,38 @@ def snapshot_load(filename, repo=None, release=None, no_secure=False, query_stri
         print(f"📦 Installing from snapshot: {pkg}")
         install(pkg, repo, release, no_secure, query_string, ntp_sync_flag)
 
+
+def print_help():
+    print(f"apkg - archcraft-pkg Alternative realtime crafting header coop reactivable and file-timesnapshot package utility. v{VERSION}")
+    print(f"Author: {AUTHOR} ({ORG})\n")
+    print("Usage:")
+    print("  apkg <command> <package|filename> [options]\n")
+    print("Commands:")
+    print("  install <package>           Install a package")
+    print("  remove <package>            Remove a package")
+    print("  search <package>            Search for a package")
+    print("  --list-keyring              List keys in keyring")
+    print("  snapshot save <filename>    Save current snapshot")
+    print("  snapshot load <filename>    Load a snapshot\n")
+    print("Options:")
+    print("  --repo=core|community       Specify repository")
+    print("  --release=STABLE|UNSTABLE   Specify release channel")
+    print("  --no-secure                 Skip PGP verification")
+    print("  --query=param=value[...]    Extra query parameters")
+    print("  --ntp-sync                  Sync time with NTP server before operation")
+    print("  --autoindex                 Use autoindex mirror feature\n")
+    print("Other:")
+    print("  --help                     Show this help message and exit")
+    print("  --version                  Show version information and exit")
+
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage:")
-        print("  apkg <install|remove|search|--list-keyring|snapshot> <pkg|filename> [options]")
-        print("Options:")
-        print("  --repo=core|community")
-        print("  --release=STABLE|UNSTABLE")
-        print("  --no-secure")
-        print("  --query=param=value&param2=value2")
-        print("  --ntp-sync")
-        print("  --autoindex")
-        sys.exit(1)
+    if len(sys.argv) < 2 or sys.argv[1] in ("--help", "-h"):
+        print_help()
+        sys.exit(0)
+
+    if sys.argv[1] == "--version":
+        print_version()
+        sys.exit(0)
 
     cmd = sys.argv[1]
 
@@ -404,3 +439,5 @@ if __name__ == "__main__":
             print("❌ Invalid snapshot command. Use 'save' or 'load'.")
     else:
         print("❌ Invalid command or missing package name.")
+        print_help()
+        sys.exit(1)
