@@ -158,6 +158,25 @@ def import_keyring(gpg_dir):
         if asc.endswith(".asc"):
             subprocess.run(["gpg", "--homedir", gpg_dir, "--import", os.path.join(KEYRING_PATH, asc)], check=True)
 
+def trust_all_keys(gpg_dir):
+    proc = subprocess.run(
+        ["gpg", "--homedir", gpg_dir, "--list-keys", "--with-colons"],
+        capture_output=True, text=True, check=True
+    )
+    keys = []
+    for line in proc.stdout.splitlines():
+        if line.startswith("pub"):
+            keyid = line.split(":")[4]
+            keys.append(keyid)
+
+    for keyid in keys:
+        input_data = "trust\n5\ny\nquit\n"
+        subprocess.run(
+            ["gpg", "--homedir", gpg_dir, "--command-fd", "0", "--edit-key", keyid],
+            input=input_data.encode(),
+            check=True
+        )
+
 def verify(pkg, gpg_dir):
     subprocess.run(["gpg", "--homedir", gpg_dir, "--verify", pkg + ".sig", pkg], check=True)
 
